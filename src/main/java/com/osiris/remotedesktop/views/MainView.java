@@ -11,7 +11,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.shared.communication.PushMode;
-import org.apache.commons.codec.binary.Base64;
 
 
 import javax.imageio.ImageIO;
@@ -21,6 +20,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,8 +59,6 @@ public class MainView extends VerticalLayout {
          */
         System.setProperty("java.awt.headless", "false");
         new Thread(() -> {
-            Thread.currentThread().setName("Screen-Recorder-Thread");
-
             try {
                 // Get all screens
                 GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -98,7 +96,7 @@ public class MainView extends VerticalLayout {
         /*
         FPS counter
          */
-        Thread.startVirtualThread(() -> {
+        new Thread(() -> {
            try{
                AtomicInteger counter = new AtomicInteger();
                onScreenshot.addAction(img -> {
@@ -111,7 +109,9 @@ public class MainView extends VerticalLayout {
            } catch (Exception e) {
                e.printStackTrace();
            }
-        });
+        }).start();
+
+
     }
 
     UI ui = UI.getCurrent();
@@ -258,7 +258,7 @@ public class MainView extends VerticalLayout {
                         ui.getPage().executeJs("let imageContainer = document.querySelector('.image-container')\n" +
                                 "let img = document.createElement(\"img\")\n" +
                                 "img.style.height = \"100%\"\n" +
-                                "img.src = `data:image/jpg;base64," + Base64.encodeBase64String(compressedScreenshot) + "`\n" +
+                                "img.src = `data:image/jpg;base64," + new String(Base64.getEncoder().encode(compressedScreenshot)) + "`\n" +
                                 "imageContainer.appendChild(img)\n");
                         ui.push();
                     });

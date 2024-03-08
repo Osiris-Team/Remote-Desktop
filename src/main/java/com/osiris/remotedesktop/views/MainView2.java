@@ -14,10 +14,15 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.shared.communication.PushMode;
-import org.apache.commons.codec.binary.Base64;
-import org.bytedeco.javacv.FFmpegFrameGrabber;
-import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.javacv.*;
+import org.bytedeco.javacv.Frame;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Image2D;
+import org.bytedeco.opencv.opencv_java;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -25,7 +30,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.nio.ByteBuffer;
+import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +46,10 @@ public class MainView2 extends VerticalLayout {
     public static final Event<Integer> onFPSChange = new Event<>();
     public static int msSleepBetweenFrames = 10;
     public static ExecutorService exec = Executors.newCachedThreadPool();
+    /**
+     * If we want around 60 fps we can only allow 17 milliseconds per frame.
+     */
+    public static final long msMax = 17;
 
     static class Display {
         public final GraphicsDevice screen;
@@ -54,6 +64,8 @@ public class MainView2 extends VerticalLayout {
     }
 
     static{
+        Loader.load(opencv_java.class);
+
         /*
         Screen recorder
          */
@@ -63,29 +75,51 @@ public class MainView2 extends VerticalLayout {
 
             try {
                 // Get all screens
-                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-                GraphicsDevice[] screens = ge.getScreenDevices();
+                GraphicsDevice[] screens = new GraphicsDevice[]{new GraphicsDevice() {
+                    @Override
+                    public int getType() {
+                        return 0;
+                    }
+
+                    @Override
+                    public String getIDstring() {
+                        return null;
+                    }
+
+                    @Override
+                    public GraphicsConfiguration[] getConfigurations() {
+                        return new GraphicsConfiguration[0];
+                    }
+
+                    @Override
+                    public GraphicsConfiguration getDefaultConfiguration() {
+                        return null;
+                    }
+                }};
                 List<Display> displays = new ArrayList<>();
                 int i = 1;
                 for (GraphicsDevice screen : screens) {
                     System.out.println("Initialising recorder for screen "+i+" \""+screen.getIDstring()+"\"...");
-                    Rectangle screenBounds = screen.getDefaultConfiguration().getBounds();
+                    Rectangle screenBounds = new Rectangle(100, 100); //screen.getDefaultConfiguration().getBounds();
                     FrameGrabber grabber = FFmpegFrameGrabber.createDefault("desktop");
+                    // Each frame grab takes around 50 milliseconds, which limits us sadly to 20 fps
                     grabber.setFormat("gdigrab");
-                    grabber.setFrameRate(30);
+                    grabber.setFrameRate(60);
                     grabber.start();
                     displays.add(new Display(screen, screenBounds, grabber));
                     i++;
                     System.out.println("Done!");
-                    break;
+                    break; // TODO crop framegrabber image containing multiple displays
                 }
 
                 while (true) {
                     List<org.bytedeco.javacv.Frame> screenshots = new ArrayList<>();
-
                     for (Display t : displays) {
+                        long msStart = System.currentTimeMillis();
                         org.bytedeco.javacv.Frame screenshot = t.frameGrabber.grab();
                         screenshots.add(screenshot);
+                        System.out.println((System.currentTimeMillis()-msStart)+"ms for getting frame");
+                        break;
                     }
 
                     try{
@@ -105,7 +139,7 @@ public class MainView2 extends VerticalLayout {
         /*
         FPS counter
          */
-        Thread.startVirtualThread(() -> {
+        new Thread(() -> {
            try{
                AtomicInteger counter = new AtomicInteger();
                onScreenshot.addAction(img -> {
@@ -118,7 +152,9 @@ public class MainView2 extends VerticalLayout {
            } catch (Exception e) {
                e.printStackTrace();
            }
-        });
+        }).start();
+
+        System.out.println("Init complete!");
     }
 
     UI ui = UI.getCurrent();
@@ -251,7 +287,7 @@ public class MainView2 extends VerticalLayout {
         /*
         Server-side
          */
-        Java2DFrameConverter converter = new Java2DFrameConverter();
+        //Java2DFrameConverter converter = new Java2DFrameConverter();
         Action<List<org.bytedeco.javacv.Frame>> actionOnScreenshot = onScreenshot.addAction((action, screenshots) -> {
             if (ui.isClosing()) {
                 action.remove();
@@ -265,26 +301,26 @@ public class MainView2 extends VerticalLayout {
                     if (screenshot.image != null) {
 
                         long msLast = System.currentTimeMillis();
-                        BufferedImage buf = converter.convert(screenshot);
-                        System.out.println(System.currentTimeMillis() - msLast+"ms for conversion to BufferedImage");
+                        //BufferedImage buf = converter.convert(screenshot);
+                        //System.out.println(System.currentTimeMillis() - msLast+"ms for conversion to BufferedImage: "+ screenshot.getTypes());
+                        //if (buf == null)  return;
 
-                        if (buf != null) {
+                        msLast = System.currentTimeMillis();
+                        //byte[] compressedScreenshot = compressImage(buf);
+                        //System.out.println(System.currentTimeMillis() - msLast+"ms for compression to byte[]");
+                        final String base64 = new String(Base64.getEncoder().encode(frameToJPG(screenshot)));
+                        System.out.println(System.currentTimeMillis() - msLast+"ms for frame -> jpg -> base64");
 
-                            msLast = System.currentTimeMillis();
-                            byte[] compressedScreenshot = compressImage(buf);
-                            System.out.println(System.currentTimeMillis() - msLast+"ms for compression to byte[]");
-
-                            ui.access(() -> {
-                                long msLast1 = System.currentTimeMillis();
-                                ui.getPage().executeJs("let imageContainer = document.querySelector('.image-container')\n" +
-                                        "let img = document.createElement(\"img\")\n" +
-                                        "img.style.height = \"100%\"\n" +
-                                        "img.src = `data:image/jpg;base64," + Base64.encodeBase64String(compressedScreenshot) + "`\n" +
-                                        "imageContainer.appendChild(img)\n");
-                                ui.push();
-                                System.out.println(System.currentTimeMillis() - msLast1+"ms for sending to UI");
-                            });
-                        }
+                        ui.access(() -> {
+                            long msLast1 = System.currentTimeMillis();
+                            ui.getPage().executeJs("let imageContainer = document.querySelector('.image-container')\n" +
+                                    "let img = document.createElement(\"img\")\n" +
+                                    "img.style.height = \"100%\"\n" +
+                                    "img.src = `data:image/jpg;base64," + base64 + "`\n" +
+                                    "imageContainer.appendChild(img)\n");
+                            ui.push();
+                            System.out.println(System.currentTimeMillis() - msLast1+"ms for sending to UI");
+                        });
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -358,6 +394,29 @@ public class MainView2 extends VerticalLayout {
                     setInterval(scrollImages, $0); // Scroll images every x ms
                 """, msSleepBetweenFrames, this);
 
+    }
+
+    public static final OpenCVFrameConverter.ToMat toMatConverter = new OpenCVFrameConverter.ToMat();
+
+    public static byte[] frameToJPG(Frame frame) {
+        // Convert OpenCV Mat to JPEG byte array
+
+        // Create a ByteArrayOutputStream to store the JPEG data
+        MatOfByte outputStream = new MatOfByte();
+
+        // Convert OpenCV Mat to JavaCV Mat
+        Mat convertedMat = toMatConverter.convertToOrgOpenCvCoreMat(frame);
+
+        // Encode the Mat as JPEG and write it to the ByteArrayOutputStream
+        Imgcodecs.imencode(".jpg", convertedMat, outputStream);
+
+        // Get the byte array from the ByteArrayOutputStream
+        byte[] jpgData = outputStream.toArray();
+
+        // Release resources
+        convertedMat.release();
+
+        return jpgData;
     }
 
     Event<Boolean> onVisibilityChange = new Event<>();
