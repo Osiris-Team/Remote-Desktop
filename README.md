@@ -7,6 +7,7 @@ A website that streams your desktop.
 2. Make sure you have [latest Java](https://www.oracle.com/java/technologies/downloads/) installed. 
 3. Double-click the downloaded jar (if that doesn't work, open a terminal and run `java -jar NAME.jar`).
 4. <b>Voila!</b> Your browser should open http://localhost:8080 and show your desktop. 
+5. NOT suitable for production at its current state, since everyone can login with admin admin, and performance issues.
 
 <details>
 <summary>If you want to watch from another device, that is in...</summary>
