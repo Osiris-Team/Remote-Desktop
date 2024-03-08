@@ -18,6 +18,8 @@ A website that streams your desktop.
 ... on the internet, visit http://insert_device_public_ip:8080 get the [ip from here](https://whatismyipaddress.com/),
           also open/forward the port 8080 in your [firewall (video)](https://www.youtube.com/watch?v=cRZ26576d1g)
           and [router (video)](https://www.youtube.com/watch?v=WOZQppVNGvA).
+
+Test if your port is open [here](https://www.yougetsignal.com/tools/open-ports/) or via the [terminal (video)](https://www.youtube.com/watch?v=7niN8ELj5B8).
 </details>
 
 
