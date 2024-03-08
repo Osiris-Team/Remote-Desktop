@@ -2,6 +2,12 @@
 
 A website that streams your desktop.
 
+## Usage
+1. Install the latest [release](https://github.com/Osiris-Team/Remote-Desktop/releases/tag/latest).
+2. Make sure you have [latest Java](https://www.oracle.com/java/technologies/downloads/) installed. 
+3. Double-click the downloaded jar (if that doesn't work, open a terminal and run `java -jar NAME.jar`).
+4. Voila! Your browser should open https://localhost:8080 and show your desktop.
+
 ## Features
 - Laggy, CPU intensive screen recording with high memory usage.
 - Dropdown menu with stats.
