@@ -6,7 +6,20 @@ A website that streams your desktop.
 1. Install the latest [release](https://github.com/Osiris-Team/Remote-Desktop/releases/tag/latest).
 2. Make sure you have [latest Java](https://www.oracle.com/java/technologies/downloads/) installed. 
 3. Double-click the downloaded jar (if that doesn't work, open a terminal and run `java -jar NAME.jar`).
-4. Voila! Your browser should open https://localhost:8080 and show your desktop.
+4. <b>Voila!</b> Your browser should open http://localhost:8080 and show your desktop. 
+
+<details>
+<summary>If you want to watch from another device, that is in...</summary>
+<br>
+  
+... in the same network, visit http://insert_device_local_ip:8080 see [how-to](https://www.youtube.com/watch?v=mdp3HtO7Cjs)
+   and (if needed) open/forward the port 8080 in your [firewall (video)](https://www.youtube.com/watch?v=cRZ26576d1g).
+   
+... on the internet, visit http://insert_device_public_ip:8080 get the [ip from here](https://whatismyipaddress.com/),
+          also open/forward the port 8080 in your [firewall (video)](https://www.youtube.com/watch?v=cRZ26576d1g)
+          and [router (video)](https://www.youtube.com/watch?v=WOZQppVNGvA).
+</details>
+
 
 ## Features
 - Laggy, CPU intensive screen recording with high memory usage.
