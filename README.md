@@ -12,6 +12,7 @@ A website that streams your desktop.
 - Laggy, CPU intensive screen recording with high memory usage.
 - Dropdown menu with stats.
 - Basic authentication.
+- Probably has the simplest installation steps in the industry.
 
 ## Todo
 - Fix above.
