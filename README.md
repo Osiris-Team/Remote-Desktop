@@ -1,7 +1,22 @@
-# My App
+# Remote-Desktop
 
-This project can be used as a starting point to create your own Vaadin application with Spring Boot.
-It contains all the necessary configuration and some placeholder files to get you started.
+A website that streams your desktop.
+
+## Features
+- Laggy, CPU intensive screen recording with high memory usage.
+- Dropdown menu with stats.
+- Basic authentication.
+
+## Todo
+- Fix above.
+- Forward mouse and keyboard interactions.
+
+## Contributing
+Always appreciated, since a lot still needs to be done.
+
+<details>
+<summary>Open/Close Build Details</summary>
+
 
 ## Running the application
 
@@ -38,8 +53,10 @@ Once the JAR file is built, you can run it using
 - Create new projects at [start.vaadin.com](https://start.vaadin.com/).
 - Search UI components and their usage examples at [vaadin.com/docs/latest/components](https://vaadin.com/docs/latest/components).
 - View use case applications that demonstrate Vaadin capabilities at [vaadin.com/examples-and-demos](https://vaadin.com/examples-and-demos).
-- Build any UI without custom CSS by discovering Vaadin's set of [CSS utility classes](https://vaadin.com/docs/styling/lumo/utility-classes). 
+- Build any UI without custom CSS by discovering Vaadin's set of [CSS utility classes](https://vaadin.com/docs/styling/lumo/utility-classes).
 - Find a collection of solutions to common use cases at [cookbook.vaadin.com](https://cookbook.vaadin.com/).
 - Find add-ons at [vaadin.com/directory](https://vaadin.com/directory).
 - Ask questions on [Stack Overflow](https://stackoverflow.com/questions/tagged/vaadin) or join our [Discord channel](https://discord.gg/MYFq5RTbBn).
 - Report issues, create pull requests in [GitHub](https://github.com/vaadin).
+</details>
+
