@@ -50,20 +50,9 @@ public class MainView2 extends VerticalLayout {
      * If we want around 60 fps we can only allow 17 milliseconds per frame.
      */
     public static final long msMax = 17;
+    public static List<Display> displays;
 
-    static class Display {
-        public final GraphicsDevice screen;
-        public final Rectangle screenBounds;
-        public final FrameGrabber frameGrabber;
-
-        public Display(GraphicsDevice screen, Rectangle screenBounds, FrameGrabber frameGrabber) {
-            this.screen = screen;
-            this.screenBounds = screenBounds;
-            this.frameGrabber = frameGrabber;
-        }
-    }
-
-    static{
+    public static void init() {
         Loader.load(opencv_java.class);
 
         /*
@@ -75,41 +64,24 @@ public class MainView2 extends VerticalLayout {
 
             try {
                 // Get all screens
-                GraphicsDevice[] screens = new GraphicsDevice[]{new GraphicsDevice() {
-                    @Override
-                    public int getType() {
-                        return 0;
-                    }
-
-                    @Override
-                    public String getIDstring() {
-                        return null;
-                    }
-
-                    @Override
-                    public GraphicsConfiguration[] getConfigurations() {
-                        return new GraphicsConfiguration[0];
-                    }
-
-                    @Override
-                    public GraphicsConfiguration getDefaultConfiguration() {
-                        return null;
-                    }
-                }};
-                List<Display> displays = new ArrayList<>();
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                GraphicsDevice[] screens = ge.getScreenDevices();
+                displays = new ArrayList<>();
                 int i = 1;
                 for (GraphicsDevice screen : screens) {
-                    System.out.println("Initialising recorder for screen "+i+" \""+screen.getIDstring()+"\"...");
-                    Rectangle screenBounds = new Rectangle(100, 100); //screen.getDefaultConfiguration().getBounds();
-                    FrameGrabber grabber = FFmpegFrameGrabber.createDefault("desktop");
-                    // Each frame grab takes around 50 milliseconds, which limits us sadly to 20 fps
-                    grabber.setFormat("gdigrab");
-                    grabber.setFrameRate(60);
-                    grabber.start();
-                    displays.add(new Display(screen, screenBounds, grabber));
+                    Rectangle screenBounds = screen.getDefaultConfiguration().getBounds();
+                    System.out.println("Initialising recorder for screen "+i+" \""+screen.getIDstring()+"\" with bounds "+screenBounds.toString()+"...");
+                    if(i == 1){ // This records all screens in one image
+                        FrameGrabber grabber = FFmpegFrameGrabber.createDefault("desktop");
+                        // Each frame grab takes around 50 milliseconds, which limits us sadly to 20 fps
+                        grabber.setFormat("gdigrab");
+                        grabber.setFrameRate(60);
+                        grabber.start();
+                        displays.add(new Display(screen, screenBounds, grabber));
+                    } else
+                        displays.add(new Display(screen, screenBounds, null));
                     i++;
                     System.out.println("Done!");
-                    break; // TODO crop framegrabber image containing multiple displays
                 }
 
                 while (true) {
@@ -118,7 +90,7 @@ public class MainView2 extends VerticalLayout {
                         long msStart = System.currentTimeMillis();
                         org.bytedeco.javacv.Frame screenshot = t.frameGrabber.grab();
                         screenshots.add(screenshot);
-                        System.out.println((System.currentTimeMillis()-msStart)+"ms for getting frame");
+                        //System.out.println((System.currentTimeMillis()-msStart)+"ms for getting frame");
                         break;
                     }
 
@@ -140,21 +112,33 @@ public class MainView2 extends VerticalLayout {
         FPS counter
          */
         new Thread(() -> {
-           try{
-               AtomicInteger counter = new AtomicInteger();
-               onScreenshot.addAction(img -> {
-                   counter.incrementAndGet();
-               });
-               while(true){
-                   Thread.sleep(1000);
-                   onFPSChange.execute(counter.getAndSet(0));
-               }
-           } catch (Exception e) {
-               e.printStackTrace();
-           }
+            try{
+                AtomicInteger counter = new AtomicInteger();
+                onScreenshot.addAction(img -> {
+                    counter.incrementAndGet();
+                });
+                while(true){
+                    Thread.sleep(1000);
+                    onFPSChange.execute(counter.getAndSet(0));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }).start();
 
         System.out.println("Init complete!");
+    }
+
+    public static class Display {
+        public final GraphicsDevice screen;
+        public final Rectangle screenBounds;
+        public final FrameGrabber frameGrabber;
+
+        public Display(GraphicsDevice screen, Rectangle screenBounds, FrameGrabber frameGrabber) {
+            this.screen = screen;
+            this.screenBounds = screenBounds;
+            this.frameGrabber = frameGrabber;
+        }
     }
 
     UI ui = UI.getCurrent();
@@ -270,19 +254,32 @@ public class MainView2 extends VerticalLayout {
          */
         add(expandingOverlay);
         HorizontalLayout menu = expandingOverlay.content;
-        menu.add(compression, display, fps);
+        menu.setDefaultVerticalComponentAlignment(Alignment.END);
+
 
         VerticalLayout imageContainer = new VerticalLayout();
         add(imageContainer);
         imageContainer.setMargin(false);
         imageContainer.setPadding(false);
         imageContainer.setSpacing(false);
-        imageContainer.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
+        //imageContainer.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
         imageContainer.setSizeFull();
         imageContainer.getStyle().set("overflow", "hidden");
         imageContainer.setClassName("image-container");
         imageContainer.addClickListener(onClick::execute);
 
+        MoveScreenButton moveScreenButton = new MoveScreenButton(imageContainer);
+        moveScreenButton.setTooltipText("Enter the \"Move-Mode\" which lets you move the screen (by dragging) and zoom in/out (by scrolling)." +
+                " The stream will be paused while in this mode. Click this again to exit the \"Move-Mode\" and lock the position.");
+        moveScreenButton.addClickListener(e -> {
+            if(moveScreenButton.isMoveModeActive.get()) onVisibilityChange.execute(false); // Stop streaming
+            else onVisibilityChange.execute(true); // Continue streaming
+        });
+        menu.add(compression, display, fps, moveScreenButton);
+
+        // Duplicate inputs of remote on the current device
+        RemoteInputDuplicator remoteInputDuplicator = new RemoteInputDuplicator(displays);
+        remoteInputDuplicator.register(UI.getCurrent(), moveScreenButton);
 
         /*
         Server-side
@@ -309,17 +306,19 @@ public class MainView2 extends VerticalLayout {
                         //byte[] compressedScreenshot = compressImage(buf);
                         //System.out.println(System.currentTimeMillis() - msLast+"ms for compression to byte[]");
                         final String base64 = new String(Base64.getEncoder().encode(frameToJPG(screenshot)));
-                        System.out.println(System.currentTimeMillis() - msLast+"ms for frame -> jpg -> base64");
+                        //System.out.println(System.currentTimeMillis() - msLast+"ms for frame -> jpg -> base64");
 
                         ui.access(() -> {
                             long msLast1 = System.currentTimeMillis();
                             ui.getPage().executeJs("let imageContainer = document.querySelector('.image-container')\n" +
                                     "let img = document.createElement(\"img\")\n" +
-                                    "img.style.height = \"100%\"\n" +
+                                    "img.style.position = \"fixed\";\n" +
+                                    "img.style.left = \""+moveScreenButton.neededImgLeft+"px\";\n" +
+                                    "img.style.top = \""+moveScreenButton.neededImgTop+"px\";\n" +
                                     "img.src = `data:image/jpg;base64," + base64 + "`\n" +
                                     "imageContainer.appendChild(img)\n");
                             ui.push();
-                            System.out.println(System.currentTimeMillis() - msLast1+"ms for sending to UI");
+                            //System.out.println(System.currentTimeMillis() - msLast1+"ms for sending to UI");
                         });
                     }
                 } catch (Exception e) {

@@ -10,15 +10,15 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class Main {
     public static void main(@NotNull String[] args) throws Exception {
+        System.setProperty("java.awt.headless", "false");
+
         try{
             // Init statics before starting otherwise VaadinBoot somehow never launches completely
-            Thread t = new Thread(() -> {
-                MainView2.frameToJPG(null);
-            });
+            Thread t = new Thread(MainView2::init);
             t.start();
             while (!t.isAlive()) {
                 System.out.println("Loading...");
-                Thread.sleep(1000);
+                Thread.sleep(500);
             }
         } catch (Exception e) {}
         new VaadinBoot().run();

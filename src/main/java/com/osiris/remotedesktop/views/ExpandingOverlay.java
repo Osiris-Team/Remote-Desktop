@@ -24,7 +24,6 @@ public class ExpandingOverlay extends VerticalLayout {
         overlayStyle.set("top", "0");
         overlayStyle.set("left", "0");
         overlayStyle.set("width", "100%");
-        overlayStyle.set("height", "100%");
         overlayStyle.set("display", "flex");
         overlayStyle.set("flex-direction", "column");
         overlayStyle.set("z-index", "1000");

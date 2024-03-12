@@ -237,6 +237,7 @@ public class MainView extends VerticalLayout {
         imageContainer.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
         imageContainer.setSizeFull();
         imageContainer.getStyle().set("overflow", "hidden");
+        imageContainer.setId("image-container");
         imageContainer.setClassName("image-container");
         imageContainer.addClickListener(onClick::execute);
 
